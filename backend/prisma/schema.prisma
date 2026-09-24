@@ -1,0 +1,155 @@
+// Mesa de Solicitudes · modelo de datos (Prisma ORM) — Sprint 1 (HU01-HU04)
+// Proveedor por defecto: SQLite (ejecución local sin servidor).
+// Los catálogos (roles, prioridades, estados, categorías, acciones) se insertan en las
+// migraciones porque el sistema los necesita para funcionar; no son datos de prueba.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Seguridad ───────────────────────────────────────────────────────────────
+
+model Rol {
+  id       Int       @id
+  codigo   String    @unique // SOLICITANTE | AGENTE | COORDINADOR | AUDITOR
+  nombre   String
+  usuarios Usuario[]
+
+  @@map("roles")
+}
+
+model Usuario {
+  id            Int      @id @default(autoincrement())
+  /// Identificador seudónimo mostrado en auditoría (p. ej. ACT-4B7Q).
+  codigoActor   String   @unique @map("codigo_actor")
+  nombre        String
+  /// Se almacena normalizado en minúsculas.
+  email         String   @unique
+  /// Hash bcrypt. Nunca texto plano (reforzado con trigger en la migración).
+  passwordHash  String   @map("password_hash")
+  rolId         Int      @map("rol_id")
+  /// Activo | Inactivo
+  estado        String   @default("Activo")
+  creadoEn      DateTime @default(now()) @map("creado_en")
+  actualizadoEn DateTime @updatedAt @map("actualizado_en")
+
+  rol                 Rol         @relation(fields: [rolId], references: [id])
+  sesiones            Sesion[]
+  solicitudes         Solicitud[] @relation("SolicitudSolicitante")
+  solicitudesEliminadas Solicitud[] @relation("SolicitudEliminadaPor")
+  auditorias          Auditoria[]
+
+  @@index([rolId, estado])
+  @@map("usuarios")
+}
+
+/// Sesiones de servidor: permiten revocar el token al cerrar sesión.
+model Sesion {
+  id         String    @id // jti del token
+  usuarioId  Int       @map("usuario_id")
+  creadaEn   DateTime  @default(now()) @map("creada_en")
+  expiraEn   DateTime  @map("expira_en")
+  revocadaEn DateTime? @map("revocada_en")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("sesiones")
+}
+
+// ─── Catálogos ───────────────────────────────────────────────────────────────
+
+model Categoria {
+  id          Int         @id @default(autoincrement())
+  nombre      String      @unique
+  activa      Boolean     @default(true)
+  solicitudes Solicitud[]
+
+  @@map("categorias")
+}
+
+model Prioridad {
+  codigo      String      @id // Baja | Media | Alta
+  /// Mayor valor = mayor urgencia (se usa para ordenar).
+  orden       Int         @unique
+  solicitudes Solicitud[]
+
+  @@map("prioridades")
+}
+
+model Estado {
+  codigo      String      @id
+  orden       Int         @unique
+  esFinal     Boolean     @default(false) @map("es_final")
+  solicitudes Solicitud[]
+
+  @@map("estados")
+}
+
+// ─── Solicitudes ─────────────────────────────────────────────────────────────
+
+model Solicitud {
+  id            Int       @id @default(autoincrement())
+  titulo        String
+  descripcion   String
+  categoriaId   Int       @map("categoria_id")
+  prioridadId   String    @default("Media") @map("prioridad")
+  estadoId      String    @default("Nuevo") @map("estado")
+  solicitanteId Int       @map("solicitante_id")
+  creadaEn      DateTime  @default(now()) @map("creada_en")
+  actualizadaEn DateTime  @default(now()) @map("actualizada_en")
+  cerradaEn     DateTime? @map("cerrada_en")
+  /// Borrado lógico (HU · Eliminar solicitud): si no es null, la solicitud no aparece en listas ni detalle.
+  eliminadaEn   DateTime? @map("eliminada_en")
+  eliminadaPor  Int?      @map("eliminada_por")
+
+  categoria    Categoria   @relation(fields: [categoriaId], references: [id])
+  prioridad    Prioridad   @relation(fields: [prioridadId], references: [codigo])
+  estado       Estado      @relation(fields: [estadoId], references: [codigo])
+  solicitante  Usuario     @relation("SolicitudSolicitante", fields: [solicitanteId], references: [id])
+  eliminadaPorUsuario Usuario? @relation("SolicitudEliminadaPor", fields: [eliminadaPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  auditorias   Auditoria[]
+
+  @@index([solicitanteId])
+  @@index([estadoId])
+  @@index([prioridadId])
+  @@index([categoriaId])
+  @@index([creadaEn])
+  @@map("solicitudes")
+}
+
+// ─── Auditoría ───────────────────────────────────────────────────────────────
+
+model AccionAuditoria {
+  codigo      String      @id
+  descripcion String
+  auditorias  Auditoria[]
+
+  @@map("acciones_auditoria")
+}
+
+/// Historial inmutable (triggers BEFORE UPDATE/DELETE + extensión del cliente Prisma).
+model Auditoria {
+  id            Int      @id @default(autoincrement())
+  solicitudId   Int?     @map("solicitud_id")
+  actorId       Int      @map("actor_id")
+  accionId      String   @map("accion")
+  campo         String
+  valorAnterior String?  @map("valor_anterior")
+  valorNuevo    String?  @map("valor_nuevo")
+  creadoEn      DateTime @default(now()) @map("creado_en")
+
+  solicitud Solicitud?      @relation(fields: [solicitudId], references: [id])
+  actor     Usuario         @relation(fields: [actorId], references: [id])
+  accion    AccionAuditoria @relation(fields: [accionId], references: [codigo])
+
+  @@index([solicitudId, creadoEn])
+  @@index([accionId])
+  @@index([creadoEn])
+  @@map("auditoria")
+}

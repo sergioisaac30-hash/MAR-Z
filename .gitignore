@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+src/backend/prisma/data/
+src/backend/tests/.tmp/

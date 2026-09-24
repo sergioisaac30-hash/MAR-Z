@@ -1,0 +1,33 @@
+{
+  "name": "mesa-solicitudes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mesa de Solicitudes: plataforma web de gestión colaborativa de solicitudes de soporte interno.",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "db:migrate": "npm run db:migrate -w backend",
+    "db:seed": "npm run db:seed -w backend",
+    "db:reset": "npm run db:reset -w backend",
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w frontend",
+    "start": "npm run start -w backend",
+    "test": "npm test -w backend && npm test -w frontend"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.25.12": true,
+    "prisma@6.19.3": true
+  }
+}

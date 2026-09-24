@@ -1,0 +1,76 @@
+/* Sistema visual v4: paleta del login (azul real + acento lima), superficies blancas, Red Hat. */
+:root {
+  /* Superficies */
+  --bg: #eef4f9;
+  --surface: #ffffff;
+  --surface-2: #f6f9fc;
+  --surface-3: #eef4f9;
+  --border: #dbe4ee;
+  --border-strong: #c7d5e4;
+
+  /* Texto */
+  --ink: #101a3d;
+  --ink-2: #465072;
+  --ink-3: #66708f;
+  --ink-4: #8791ad;
+  --ink-inverse: #ffffff;
+
+  /* Marca y acción */
+  --brand: #1e3aa8;
+  --brand-hover: #19318f;
+  --brand-soft: #eef2ff;
+  --brand-ring: rgba(47, 84, 235, 0.22);
+  --accent: #2f54eb;
+  --accent-bright: #3b82f6;
+  --accent-lime: #d9f26b;
+  --accent-lime-ink: #3d4a12;
+
+  /* Navegación lateral */
+  --nav-bg: #ffffff;
+  --nav-panel: #f4f6f9;
+  --nav-ink: #4a5468;
+  --nav-ink-strong: #141a26;
+  --nav-icon: #8a93a6;
+  --nav-icon-active: #141a26;
+  --nav-hover: #f3f5f8;
+  --nav-active: #f1f8d2;
+  --nav-active-ink: #141a26;
+  --nav-label: #9aa3b5;
+
+  /* Visualización de datos (validado: croma y contraste sobre la superficie) */
+  --chart-mark: #2f54eb;
+  --chart-grid: #dbe4ee;
+
+  /* Semánticos */
+  --danger: #c0362c;
+  --danger-soft: #fdecec;
+  --warning: #b25e09;
+  --warning-soft: #fff4e5;
+  --success: #177a4b;
+  --success-soft: #e8f7ef;
+  --info: #3446c4;
+  --info-soft: #eef2ff;
+
+  /* Tipografía */
+  --font-sans: 'Red Hat Text', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Red Hat Display', 'Red Hat Text', system-ui, sans-serif;
+  --font-mono: 'Red Hat Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.875rem;
+  --fs-lg: 1rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: 1.625rem;
+
+  /* Forma y profundidad */
+  --radius-sm: 8px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --sidebar-w: 248px;
+  --topbar-h: 64px;
+  --shadow-card: 0 1px 2px rgba(16, 26, 61, 0.05);
+  --shadow-raised: 0 8px 24px rgba(16, 26, 61, 0.08), 0 1px 2px rgba(16, 26, 61, 0.04);
+  --shadow-pop: 0 30px 80px rgba(16, 26, 61, 0.28), 0 2px 6px rgba(16, 26, 61, 0.08);
+  --focus: 0 0 0 3px var(--brand-ring);
+}

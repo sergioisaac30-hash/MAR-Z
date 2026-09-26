@@ -57,11 +57,28 @@ export function filtroPorRol(user) {
   }
 }
 
-// HU08 · Búsqueda por texto en título y descripción; admite también el código SOL-00000.
-function filtroTexto(q) {
+// HU08/HU09 · Búsqueda por texto en título y descripción; admite también el código SOL-00000.
+export function filtroTexto(q) {
   if (!q) return {};
   const id = parseCodigo(q);
   return { OR: [{ titulo: { contains: q } }, { descripcion: { contains: q } }, ...(id ? [{ id }] : [])] };
+}
+
+/**
+ * HU09 · Filtro completo: alcance del rol AND texto AND estado AND prioridad AND categoría.
+ * Es el único punto donde se combinan los filtros, para que listado (HU09), indicadores (HU10)
+ * y exportación (HU12) apliquen exactamente los mismos criterios.
+ */
+export function filtroSolicitudes(user, { q, estado, prioridad, categoriaId } = {}) {
+  return {
+    AND: [
+      filtroPorRol(user),
+      filtroTexto(q),
+      estado ? { estadoId: estado } : {},
+      prioridad ? { prioridadId: prioridad } : {},
+      categoriaId ? { categoriaId } : {},
+    ],
+  };
 }
 
 function asignacionDTO(asignacion) {
@@ -164,10 +181,10 @@ export function crearServicioSolicitud({ prisma }) {
       });
     },
 
-    // HU03 / HU04 / HU08 · Lista dentro del alcance del rol, ordenable y con búsqueda por texto.
-    async listar(user, { orden = 'fecha', dir = 'desc', q } = {}) {
+    // HU03 / HU04 / HU08 / HU09 · Lista dentro del alcance del rol, ordenable, con búsqueda y filtros.
+    async listar(user, { orden = 'fecha', dir = 'desc', ...filtros } = {}) {
       const filas = await prisma.solicitud.findMany({
-        where: { AND: [filtroPorRol(user), filtroTexto(q)] },
+        where: filtroSolicitudes(user, filtros),
         include: INCLUDE_SOLICITUD,
         orderBy: ORDENES[orden](dir),
       });

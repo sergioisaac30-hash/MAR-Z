@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PRIORIDADES, PRIORIDAD_CON_JUSTIFICACION, PRIORIDAD_POR_DEFECTO } from '../domain/constantes.js';
+import { ESTADOS, PRIORIDADES, PRIORIDAD_CON_JUSTIFICACION, PRIORIDAD_POR_DEFECTO } from '../domain/constantes.js';
 import { hoyLocal } from '../utils/fechas.js';
 
 // Valida que el id de la URL sea un número positivo.
@@ -62,11 +62,19 @@ export const crearSolicitudSchema = conReglaAlta(
 
 const vacioAIndefinido = (schema) => z.preprocess((v) => (v === '' || v === null ? undefined : v), schema);
 
-// HU04 · Ordenar por prioridad, estado o fecha · HU08 · búsqueda por texto dentro del alcance.
-export const listarSolicitudesQuery = z.object({
+// HU09 · Filtros reproducibles (texto, estado, prioridad, categoría). Se combinan con AND y
+// siempre dentro del alcance del rol. Los reutilizan los indicadores (HU10) y la exportación (HU12).
+export const filtrosSolicitudSchema = z.object({
+  q: vacioAIndefinido(z.string().trim().max(200, 'La búsqueda admite como máximo 200 caracteres.').optional()),
+  estado: vacioAIndefinido(z.enum(Object.values(ESTADOS), { errorMap: () => ({ message: 'Estado no válido.' }) }).optional()),
+  prioridad: vacioAIndefinido(prioridad.optional()),
+  categoriaId: vacioAIndefinido(z.coerce.number().int().positive('Categoría no válida.').optional()),
+});
+
+// HU04 · Ordenar por prioridad, estado o fecha · HU09 · con los filtros de búsqueda.
+export const listarSolicitudesQuery = filtrosSolicitudSchema.extend({
   orden: z.enum(['prioridad', 'estado', 'fecha']).default('fecha'),
   dir: z.enum(['asc', 'desc']).default('desc'),
-  q: vacioAIndefinido(z.string().trim().max(200, 'La búsqueda admite como máximo 200 caracteres.').optional()),
 });
 
 // HU04 (+ CAM-01) · La prioridad nueva debe ser válida; Alta exige justificación y fecha objetivo.

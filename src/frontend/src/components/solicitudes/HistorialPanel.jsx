@@ -3,9 +3,18 @@ import { useCarga } from '../../hooks/useApi.js';
 import { ErrorState, Loading } from '../ui/componentes.jsx';
 import { formatFechaHora } from '../../utils/format.js';
 
-// Cambia "estado_cambiado" en "Estado" para mostrarlo con el nombre de un campo, no de un código.
-function nombreCampo(campo) {
-  return { estado: 'Estado', prioridad: 'Prioridad', justificacion_prioridad: 'Justificación', fecha_objetivo: 'Fecha objetivo', motivo: 'Motivo', comentario: 'Comentario' }[campo] ?? campo;
+// Cambia el nombre de columna de un campo (p. ej. "fecha_objetivo") por un texto legible.
+export function nombreCampo(campo) {
+  return {
+    estado: 'Estado',
+    prioridad: 'Prioridad',
+    justificacion_prioridad: 'Justificación',
+    fecha_objetivo: 'Fecha objetivo',
+    motivo: 'Motivo',
+    comentario: 'Comentario',
+    agente_asignado: 'Agente asignado',
+    reporte_solicitudes: 'Reporte exportado',
+  }[campo] ?? campo;
 }
 
 // HU07 · Historial completo de la solicitud: actor codificado, fecha, campo y valores.

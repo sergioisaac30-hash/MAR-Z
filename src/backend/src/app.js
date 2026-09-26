@@ -9,8 +9,14 @@ import { manejarErrores, rutaNoEncontrada } from './middleware/errorHandler.js';
 import { verificarSesion } from './middleware/auth.js';
 import { authRoutes } from './routes/authRoutes.js';
 import { solicitudRoutes, catalogoRoutes } from './routes/solicitudRoutes.js';
+import { agenteRoutes } from './routes/agenteRoutes.js';
+import { notificacionRoutes } from './routes/notificacionRoutes.js';
 import { crearServicioAuth } from './services/authService.js';
 import { crearServicioCatalogo, crearServicioSolicitud } from './services/solicitudService.js';
+import { crearServicioAsignacion } from './services/asignacionService.js';
+import { crearServicioComentario } from './services/comentarioService.js';
+import { crearServicioFlujo } from './services/flujoService.js';
+import { crearServicioNotificacion } from './services/notificacionService.js';
 
 // Junta todos los servicios que usa la app.
 function crearServicios({ prisma, config }) {
@@ -18,6 +24,10 @@ function crearServicios({ prisma, config }) {
     auth: crearServicioAuth({ prisma, config }),
     catalogos: crearServicioCatalogo({ prisma }),
     solicitudes: crearServicioSolicitud({ prisma }),
+    asignaciones: crearServicioAsignacion({ prisma }),
+    comentarios: crearServicioComentario({ prisma }),
+    flujo: crearServicioFlujo({ prisma }),
+    notificaciones: crearServicioNotificacion({ prisma }),
   };
 }
 
@@ -30,6 +40,8 @@ function crearRouterApi({ services, config }) {
   router.use('/auth', authRoutes(deps));
   router.use('/catalogos', catalogoRoutes(deps));
   router.use('/solicitudes', solicitudRoutes(deps));
+  router.use('/agentes', agenteRoutes(deps));
+  router.use('/notificaciones', notificacionRoutes(deps));
   return router;
 }
 

@@ -2,18 +2,26 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { solicitudesApi } from '../api/cliente.js';
 import { useCatalogos } from '../hooks/useApi.js';
+import { hoyLocal } from '../utils/fecha.js';
+import { CamposPrioridadAlta } from '../components/solicitudes/CamposPrioridadAlta.jsx';
 import { PrioridadSelector } from '../components/solicitudes/PrioridadSelector.jsx';
 import { Alert, Button, ErrorState, Field, Loading, PageHeader, useToast } from '../components/ui/componentes.jsx';
 
 const LIMITES = { titulo: 150, descripcion: 4000 };
-const INICIAL = { titulo: '', descripcion: '', categoriaId: '', prioridad: 'Media' };
+const INICIAL = { titulo: '', descripcion: '', categoriaId: '', prioridad: 'Media', justificacionPrioridad: '', fechaObjetivo: '' };
 
 // Validación en cliente equivalente a la del servidor (el servidor siempre revalida).
+// Cambio 1 (CAM-01): la prioridad Alta exige justificación y fecha objetivo (hoy o posterior).
 export function validarSolicitud(form) {
   const errores = {};
   if (!form.titulo.trim()) errores.titulo = 'El título es obligatorio.';
   if (!form.descripcion.trim()) errores.descripcion = 'La descripción es obligatoria.';
   if (!form.categoriaId) errores.categoriaId = 'La categoría es obligatoria.';
+  if (form.prioridad === 'Alta') {
+    if (!form.justificacionPrioridad?.trim()) errores.justificacionPrioridad = 'La prioridad Alta requiere una justificación.';
+    if (!form.fechaObjetivo) errores.fechaObjetivo = 'La prioridad Alta requiere una fecha objetivo.';
+    else if (form.fechaObjetivo < hoyLocal()) errores.fechaObjetivo = 'La fecha objetivo no puede ser anterior a hoy.';
+  }
   return errores;
 }
 
@@ -28,6 +36,11 @@ export default function NuevaSolicitudPage() {
   const [enviando, setEnviando] = useState(false);
 
   const set = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e?.target ? e.target.value : e }));
+
+  // Al bajar de Alta a otra prioridad se descartan la justificación y la fecha objetivo.
+  function setPrioridad(prioridad) {
+    setForm((f) => (prioridad === 'Alta' ? { ...f, prioridad } : { ...f, prioridad, justificacionPrioridad: '', fechaObjetivo: '' }));
+  }
 
   // Envía el formulario de nueva solicitud.
   async function enviar(e) {
@@ -44,6 +57,8 @@ export default function NuevaSolicitudPage() {
         descripcion: form.descripcion,
         categoriaId: Number(form.categoriaId),
         prioridad: form.prioridad,
+        justificacionPrioridad: form.prioridad === 'Alta' ? form.justificacionPrioridad : undefined,
+        fechaObjetivo: form.prioridad === 'Alta' ? form.fechaObjetivo : undefined,
       });
       toast.exito(`Solicitud ${creada.codigo} registrada.`);
       navigate(`/solicitudes/${creada.id}`);
@@ -87,8 +102,17 @@ export default function NuevaSolicitudPage() {
             </select>
           </Field>
           <Field label="Prioridad sugerida" hint="El coordinador puede ajustarla." error={errores.prioridad}>
-            <PrioridadSelector value={form.prioridad} onChange={set('prioridad')} />
+            <PrioridadSelector value={form.prioridad} onChange={setPrioridad} />
           </Field>
+          {form.prioridad === 'Alta' ? (
+            <CamposPrioridadAlta
+              justificacion={form.justificacionPrioridad}
+              fecha={form.fechaObjetivo}
+              onJustificacion={(v) => setForm((f) => ({ ...f, justificacionPrioridad: v }))}
+              onFecha={(v) => setForm((f) => ({ ...f, fechaObjetivo: v }))}
+              errores={errores}
+            />
+          ) : null}
           <Field
             className="span-2"
             label="Descripción"

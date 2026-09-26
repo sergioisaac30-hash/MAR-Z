@@ -111,3 +111,38 @@ export const notificacionesApi = {
   marcarLeida: (id) => patch(`/notificaciones/${id}/leida`),
   marcarTodas: () => post('/notificaciones/leidas'),
 };
+
+// HU10 · Indicadores agregados del servicio (solo coordinador).
+export const indicadoresApi = {
+  obtener: (filtros, opts) => get('/indicadores', filtros, opts),
+};
+
+// HU11 · Historial de auditoría (solo auditor, solo lectura).
+export const auditoriaApi = {
+  listar: (filtros, opts) => get('/auditoria', filtros, opts),
+};
+
+// HU12 · Exportación de reportes en CSV (solo coordinador). No usa api() porque la respuesta
+// no es JSON: se lee como archivo y se toma el nombre y la cantidad de filas de las cabeceras.
+export const reportesApi = {
+  async exportarSolicitudes(filtros) {
+    const res = await fetch(construirUrl('/reportes/solicitudes', undefined), {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'MesaSolicitudes',
+      },
+      body: JSON.stringify(filtros ?? {}),
+    });
+    if (!res.ok) {
+      const datos = await res.json().catch(() => null);
+      const e = datos?.error ?? {};
+      throw new ApiError(res.status, e.codigo ?? 'ERROR', e.mensaje ?? 'No se pudo generar el reporte.', e.detalles);
+    }
+    const disposicion = res.headers.get('content-disposition') ?? '';
+    const nombre = /filename="(.+)"/.exec(disposicion)?.[1] ?? 'solicitudes.csv';
+    const filas = res.headers.get('x-filas-exportadas') ?? '0';
+    return { blob: await res.blob(), nombre, filas: Number(filas) };
+  },
+};

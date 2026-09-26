@@ -4,8 +4,9 @@ import { solicitudesApi } from '../api/cliente.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { ROLES } from '../auth/roles.js';
 import { useCarga } from '../hooks/useApi.js';
+import { useFiltrosUrl } from '../hooks/useFiltrosUrl.js';
 import { AsignarModal } from '../components/solicitudes/AsignarModal.jsx';
-import { BuscadorTexto } from '../components/solicitudes/BuscadorTexto.jsx';
+import { FiltrosSolicitudes } from '../components/solicitudes/FiltrosSolicitudes.jsx';
 import { EliminarSolicitudModal } from '../components/solicitudes/EliminarSolicitudModal.jsx';
 import { puedeAsignar, puedeEliminarSolicitud } from '../components/solicitudes/permisos.js';
 import { PrioridadModal } from '../components/solicitudes/PrioridadModal.jsx';
@@ -36,10 +37,10 @@ function VistaSolicitante() {
   const { usuario } = useAuth();
   const toast = useToast();
   const [orden, setOrden] = useState({ orden: 'fecha', dir: 'desc' });
-  const [q, setQ] = useState('');
-  const clave = JSON.stringify({ ...orden, q });
+  const { valores, filtros, actualizar, limpiar, hayFiltros } = useFiltrosUrl();
+  const clave = JSON.stringify({ ...orden, ...filtros });
   const [aEliminar, setAEliminar] = useState(null);
-  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar({ ...orden, q }, { signal }), [clave]);
+  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar({ ...orden, ...filtros }, { signal }), [clave]);
   const abiertas = datos ? datos.datos.filter((s) => !s.esFinal).length : null;
 
   return (
@@ -59,14 +60,12 @@ function VistaSolicitante() {
         }
       />
       <section className="panel">
-        <div className="toolbar">
-          <BuscadorTexto value={q} onChange={setQ} />
-        </div>
+        <FiltrosSolicitudes valores={valores} onCambiar={actualizar} onLimpiar={limpiar} hayFiltros={hayFiltros} />
         {cargando && !datos ? <Loading /> : null}
         {error ? <ErrorState error={error} onReintentar={recargar} /> : null}
         {datos && datos.datos.length === 0 ? (
-          <EmptyState titulo={q ? 'Ninguna solicitud coincide con la búsqueda' : 'Aún no hay solicitudes'} accion={<Link to="/solicitudes/nueva" className="btn btn--secondary">Crear la primera</Link>}>
-            {q ? 'Pruebe con otro título o descripción.' : 'Cuando registre una solicitud aparecerá aquí con su estado actualizado.'}
+          <EmptyState titulo={hayFiltros ? 'Ninguna solicitud coincide con los filtros' : 'Aún no hay solicitudes'} accion={<Link to="/solicitudes/nueva" className="btn btn--secondary">Crear la primera</Link>}>
+            {hayFiltros ? 'Pruebe con otros filtros.' : 'Cuando registre una solicitud aparecerá aquí con su estado actualizado.'}
           </EmptyState>
         ) : null}
         {datos && datos.datos.length > 0 ? (
@@ -104,11 +103,12 @@ function VistaCoordinador() {
   const { usuario } = useAuth();
   const toast = useToast();
   const [orden, setOrden] = useState({ orden: 'prioridad', dir: 'desc' });
-  const clave = JSON.stringify(orden);
+  const { valores, filtros, actualizar, limpiar, hayFiltros } = useFiltrosUrl();
+  const clave = JSON.stringify({ ...orden, ...filtros });
   const [seleccion, setSeleccion] = useState(null);
   const [aAsignar, setAAsignar] = useState(null);
   const [aEliminar, setAEliminar] = useState(null);
-  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar(orden, { signal }), [clave]);
+  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar({ ...orden, ...filtros }, { signal }), [clave]);
 
   const ordenar = (o, d) => setOrden({ orden: o, dir: d });
   const total = datos ? datos.datos.length : null;
@@ -140,9 +140,10 @@ function VistaCoordinador() {
         }
       />
       <section className="panel">
+        <FiltrosSolicitudes valores={valores} onCambiar={actualizar} onLimpiar={limpiar} hayFiltros={hayFiltros} />
         {cargando && !datos ? <Loading /> : null}
         {error ? <ErrorState error={error} onReintentar={recargar} /> : null}
-        {datos?.datos.length === 0 ? <EmptyState titulo="No hay solicitudes registradas" /> : null}
+        {datos?.datos.length === 0 ? <EmptyState titulo={hayFiltros ? 'Ninguna solicitud coincide con los filtros' : 'No hay solicitudes registradas'} /> : null}
         {datos?.datos.length ? (
           <SolicitudesTable
             solicitudes={datos.datos}
@@ -210,8 +211,9 @@ function VistaCoordinador() {
 function VistaAgente() {
   const { usuario } = useAuth();
   const [orden, setOrden] = useState({ orden: 'fecha', dir: 'desc' });
-  const clave = JSON.stringify(orden);
-  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar(orden, { signal }), [clave]);
+  const { valores, filtros, actualizar, limpiar, hayFiltros } = useFiltrosUrl();
+  const clave = JSON.stringify({ ...orden, ...filtros });
+  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar({ ...orden, ...filtros }, { signal }), [clave]);
   const enAtencion = datos ? datos.datos.filter((s) => !s.esFinal).length : null;
 
   return (
@@ -222,11 +224,12 @@ function VistaAgente() {
       />
       <PageHeader eyebrow="Solicitudes" titulo="Asignadas a mí" descripcion="Solo se muestran las solicitudes que tiene asignadas actualmente." />
       <section className="panel">
+        <FiltrosSolicitudes valores={valores} onCambiar={actualizar} onLimpiar={limpiar} hayFiltros={hayFiltros} />
         {cargando && !datos ? <Loading /> : null}
         {error ? <ErrorState error={error} onReintentar={recargar} /> : null}
         {datos && datos.datos.length === 0 ? (
-          <EmptyState icono="inbox" titulo="No tiene solicitudes asignadas">
-            El coordinador le asignará solicitudes a medida que las reciba.
+          <EmptyState icono="inbox" titulo={hayFiltros ? 'Ninguna solicitud coincide con los filtros' : 'No tiene solicitudes asignadas'}>
+            {hayFiltros ? 'Pruebe con otros filtros.' : 'El coordinador le asignará solicitudes a medida que las reciba.'}
           </EmptyState>
         ) : null}
         {datos && datos.datos.length > 0 ? (
@@ -237,30 +240,14 @@ function VistaAgente() {
   );
 }
 
-// El auditor: sus funciones no están en este sprint.
-function VistaProximosSprints() {
-  const { usuario } = useAuth();
-  return (
-    <>
-      <WelcomeBand nombre={usuario.nombre.split(' ')[0]} resumen="Sus funciones llegan en próximos sprints." />
-      <PageHeader eyebrow="Solicitudes" titulo="Solicitudes" />
-      <section className="panel">
-        <EmptyState icono="clock" titulo="Sus funciones llegan en próximos sprints">
-          Este rol se incorporará al sistema en una próxima entrega.
-        </EmptyState>
-      </section>
-    </>
-  );
-}
-
 /**
- * HU03/HU04/HU05 · Una sola página que muestra la vista según el rol: el solicitante ve
- * sus propias solicitudes, el coordinador ve todas y el agente solo las asignadas.
+ * HU03/HU04/HU05/HU09 · Una sola página que muestra la vista según el rol: el solicitante ve
+ * sus propias solicitudes, el coordinador ve todas y el agente solo las asignadas. El auditor
+ * no tiene acceso a esta ruta (su entrada es el historial de auditoría).
  */
 export default function SolicitudesPage() {
   const { usuario } = useAuth();
   if (usuario.rol === ROLES.COORDINADOR) return <VistaCoordinador />;
   if (usuario.rol === ROLES.SOLICITANTE) return <VistaSolicitante />;
-  if (usuario.rol === ROLES.AGENTE) return <VistaAgente />;
-  return <VistaProximosSprints />;
+  return <VistaAgente />;
 }

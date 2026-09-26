@@ -4,12 +4,17 @@ import { solicitudesApi } from '../api/cliente.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { ROLES } from '../auth/roles.js';
 import { useCarga } from '../hooks/useApi.js';
+import { AccionesAgente } from '../components/solicitudes/AccionesAgente.jsx';
+import { AccionesSolicitante } from '../components/solicitudes/AccionesSolicitante.jsx';
+import { AsignarModal } from '../components/solicitudes/AsignarModal.jsx';
+import { ComentariosPanel } from '../components/solicitudes/ComentariosPanel.jsx';
 import { EliminarSolicitudModal } from '../components/solicitudes/EliminarSolicitudModal.jsx';
-import { puedeEliminarSolicitud } from '../components/solicitudes/permisos.js';
+import { HistorialPanel } from '../components/solicitudes/HistorialPanel.jsx';
+import { puedeAsignar, puedeComentar, puedeEliminarSolicitud } from '../components/solicitudes/permisos.js';
 import { PrioridadModal } from '../components/solicitudes/PrioridadModal.jsx';
-import { Button, EmptyState, ErrorState, Loading, PriorityBadge, StatusBadge, useToast } from '../components/ui/componentes.jsx';
+import { Alert, Button, EmptyState, ErrorState, Loading, PriorityBadge, StatusBadge, useToast } from '../components/ui/componentes.jsx';
 import { Icon } from '../components/ui/Icon.jsx';
-import { formatFechaHora, formatRelativo, iniciales } from '../utils/format.js';
+import { formatFecha, formatFechaHora, formatRelativo, iniciales } from '../utils/format.js';
 
 function DatosSolicitud({ s }) {
   return (
@@ -19,8 +24,20 @@ function DatosSolicitud({ s }) {
         <dl className="dl dl--stacked">
           <div><dt>Estado</dt><dd><StatusBadge estado={s.estado} /></dd></div>
           <div><dt>Prioridad</dt><dd><PriorityBadge prioridad={s.prioridad} /></dd></div>
+          {s.prioridad === 'Alta' ? (
+            <>
+              <div><dt>Justificación de la prioridad</dt><dd>{s.justificacionPrioridad}</dd></div>
+              <div><dt>Fecha objetivo</dt><dd>{formatFecha(s.fechaObjetivo)}</dd></div>
+            </>
+          ) : null}
           <div><dt>Categoría</dt><dd>{s.categoria.nombre}</dd></div>
           <div><dt>Solicitante</dt><dd>{s.solicitante.nombre}</dd></div>
+          {s.asignacion ? (
+            <div>
+              <dt>Agente asignado</dt>
+              <dd>{s.asignacion.agente.nombre} · asignado por {s.asignacion.asignadoPor.codigoActor} el {formatFechaHora(s.asignacion.asignadoEn)}</dd>
+            </div>
+          ) : null}
           <div><dt>Creada</dt><dd>{formatFechaHora(s.creadaEn)}</dd></div>
           <div><dt>Última actualización</dt><dd>{formatFechaHora(s.actualizadaEn)}</dd></div>
           {s.cerradaEn ? <div><dt>Cerrada</dt><dd>{formatFechaHora(s.cerradaEn)}</dd></div> : null}
@@ -33,12 +50,16 @@ function DatosSolicitud({ s }) {
 function PanelGestion({ usuario, s, onAbrir }) {
   const esCoordinador = usuario.rol === ROLES.COORDINADOR;
   const mostrarPrioridad = esCoordinador && !s.esFinal;
+  const mostrarAsignar = puedeAsignar(usuario, s);
   const mostrarEliminar = puedeEliminarSolicitud(usuario, s);
-  if (!mostrarPrioridad && !mostrarEliminar) return null;
+  if (!mostrarPrioridad && !mostrarAsignar && !mostrarEliminar) return null;
   return (
     <section className="panel">
       <div className="panel__header"><h2 className="panel__title">Gestión</h2></div>
       <div className="panel__body stack" style={{ gap: 8 }}>
+        {mostrarAsignar ? (
+          <Button icon="user" block onClick={() => onAbrir('asignar')}>{s.asignacion ? 'Reasignar' : 'Asignar'} agente</Button>
+        ) : null}
         {mostrarPrioridad ? <Button icon="flag" block onClick={() => onAbrir('prioridad')}>Cambiar prioridad</Button> : null}
         {mostrarEliminar ? (
           <Button variant="danger" icon="trash" block onClick={() => onAbrir('eliminar')}>Eliminar solicitud</Button>
@@ -48,7 +69,7 @@ function PanelGestion({ usuario, s, onAbrir }) {
   );
 }
 
-// HU03 · Detalle de la solicitud (dentro del alcance del rol) y HU04 · cambio de prioridad.
+// HU03/HU04 · Detalle y prioridad · HU05-HU08 · asignación, comentarios, flujo y cierre.
 export default function SolicitudDetallePage() {
   const { id } = useParams();
   const { usuario } = useAuth();
@@ -103,6 +124,18 @@ export default function SolicitudDetallePage() {
             <div className="panel__header"><h2 className="panel__title">Descripción</h2></div>
             <div className="panel__body"><p className="description">{s.descripcion}</p></div>
           </section>
+
+          {s.ultimaReapertura ? (
+            <Alert tipo="warning" titulo="Solicitud reabierta">
+              {s.ultimaReapertura.motivo}
+            </Alert>
+          ) : null}
+
+          {usuario.rol === ROLES.AGENTE ? <AccionesAgente solicitud={s} onCambiado={recargar} /> : null}
+          {usuario.rol === ROLES.SOLICITANTE ? <AccionesSolicitante solicitud={s} onCambiado={recargar} /> : null}
+
+          <ComentariosPanel key={`c-${s.actualizadaEn}`} solicitudId={s.id} puedeComentar={puedeComentar(usuario, s)} />
+          <HistorialPanel key={`h-${s.actualizadaEn}`} solicitudId={s.id} />
         </div>
 
         <aside className="detail__side">
@@ -118,6 +151,18 @@ export default function SolicitudDetallePage() {
           onGuardado={(a) => {
             setModal(null);
             toast.exito(`Prioridad de ${a.codigo} actualizada a ${a.prioridad}.`);
+            recargar();
+          }}
+        />
+      ) : null}
+
+      {modal === 'asignar' ? (
+        <AsignarModal
+          solicitud={s}
+          onClose={cerrarModal}
+          onAsignado={(a) => {
+            setModal(null);
+            toast.exito(`${a.codigo} asignada a ${a.asignacion.agente.nombre}.`);
             recargar();
           }}
         />

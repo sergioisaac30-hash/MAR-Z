@@ -4,8 +4,10 @@ import { solicitudesApi } from '../api/cliente.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { ROLES } from '../auth/roles.js';
 import { useCarga } from '../hooks/useApi.js';
+import { AsignarModal } from '../components/solicitudes/AsignarModal.jsx';
+import { BuscadorTexto } from '../components/solicitudes/BuscadorTexto.jsx';
 import { EliminarSolicitudModal } from '../components/solicitudes/EliminarSolicitudModal.jsx';
-import { puedeEliminarSolicitud } from '../components/solicitudes/permisos.js';
+import { puedeAsignar, puedeEliminarSolicitud } from '../components/solicitudes/permisos.js';
 import { PrioridadModal } from '../components/solicitudes/PrioridadModal.jsx';
 import { SolicitudesTable } from '../components/solicitudes/SolicitudesTable.jsx';
 import { Button, EmptyState, ErrorState, Loading, PageHeader, useToast } from '../components/ui/componentes.jsx';
@@ -29,14 +31,15 @@ function WelcomeBand({ nombre, resumen }) {
   );
 }
 
-// HU03 · Vista del solicitante: solo sus propias solicitudes.
+// HU03 (+ HU08) · Vista del solicitante: solo sus propias solicitudes, con búsqueda por texto.
 function VistaSolicitante() {
   const { usuario } = useAuth();
   const toast = useToast();
   const [orden, setOrden] = useState({ orden: 'fecha', dir: 'desc' });
-  const clave = JSON.stringify(orden);
+  const [q, setQ] = useState('');
+  const clave = JSON.stringify({ ...orden, q });
   const [aEliminar, setAEliminar] = useState(null);
-  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar(orden, { signal }), [clave]);
+  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar({ ...orden, q }, { signal }), [clave]);
   const abiertas = datos ? datos.datos.filter((s) => !s.esFinal).length : null;
 
   return (
@@ -56,11 +59,14 @@ function VistaSolicitante() {
         }
       />
       <section className="panel">
+        <div className="toolbar">
+          <BuscadorTexto value={q} onChange={setQ} />
+        </div>
         {cargando && !datos ? <Loading /> : null}
         {error ? <ErrorState error={error} onReintentar={recargar} /> : null}
         {datos && datos.datos.length === 0 ? (
-          <EmptyState titulo="Aún no hay solicitudes" accion={<Link to="/solicitudes/nueva" className="btn btn--secondary">Crear la primera</Link>}>
-            Cuando registre una solicitud aparecerá aquí con su estado actualizado.
+          <EmptyState titulo={q ? 'Ninguna solicitud coincide con la búsqueda' : 'Aún no hay solicitudes'} accion={<Link to="/solicitudes/nueva" className="btn btn--secondary">Crear la primera</Link>}>
+            {q ? 'Pruebe con otro título o descripción.' : 'Cuando registre una solicitud aparecerá aquí con su estado actualizado.'}
           </EmptyState>
         ) : null}
         {datos && datos.datos.length > 0 ? (
@@ -93,13 +99,14 @@ function VistaSolicitante() {
   );
 }
 
-// HU04 · Vista del coordinador: todas las solicitudes, ordenables, con acción de priorizar.
+// HU04 (+ HU05) · Vista del coordinador: todas las solicitudes, ordenables, con priorizar y asignar.
 function VistaCoordinador() {
   const { usuario } = useAuth();
   const toast = useToast();
   const [orden, setOrden] = useState({ orden: 'prioridad', dir: 'desc' });
   const clave = JSON.stringify(orden);
   const [seleccion, setSeleccion] = useState(null);
+  const [aAsignar, setAAsignar] = useState(null);
   const [aEliminar, setAEliminar] = useState(null);
   const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar(orden, { signal }), [clave]);
 
@@ -116,7 +123,7 @@ function VistaCoordinador() {
       <PageHeader
         eyebrow="Gestión"
         titulo="Priorización"
-        descripcion="Ordene la cola de atención y cambie la prioridad. Cada cambio queda registrado con su autor y fecha."
+        descripcion="Ordene la cola de atención, asigne un agente y cambie la prioridad. Cada cambio queda registrado con su autor y fecha."
         acciones={
           <div className="row">
             <label htmlFor="orden" className="muted" style={{ fontSize: 'var(--fs-sm)' }}>Ordenar por</label>
@@ -145,6 +152,9 @@ function VistaCoordinador() {
             mostrarSolicitante
             acciones={(s) => (
               <span className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+                {puedeAsignar(usuario, s) ? (
+                  <Button size="sm" icon="user" onClick={() => setAAsignar(s)} aria-label={`Asignar ${s.codigo}`} title="Asignar agente" />
+                ) : null}
                 {!s.esFinal ? (
                   <Button size="sm" icon="flag" onClick={() => setSeleccion(s)} aria-label={`Priorizar ${s.codigo}`} title="Cambiar prioridad" />
                 ) : null}
@@ -169,6 +179,18 @@ function VistaCoordinador() {
         />
       ) : null}
 
+      {aAsignar ? (
+        <AsignarModal
+          solicitud={aAsignar}
+          onClose={() => setAAsignar(null)}
+          onAsignado={(act) => {
+            setAAsignar(null);
+            toast.exito(`${act.codigo} asignada a ${act.asignacion.agente.nombre}.`);
+            recargar();
+          }}
+        />
+      ) : null}
+
       {aEliminar ? (
         <EliminarSolicitudModal
           solicitud={aEliminar}
@@ -184,7 +206,38 @@ function VistaCoordinador() {
   );
 }
 
-// Otros roles (agente, auditor): sus funciones no están en este sprint.
+// HU05/HU06/HU07 · Vista del agente: solo las solicitudes que tiene asignadas.
+function VistaAgente() {
+  const { usuario } = useAuth();
+  const [orden, setOrden] = useState({ orden: 'fecha', dir: 'desc' });
+  const clave = JSON.stringify(orden);
+  const { datos, error, cargando, recargar } = useCarga((signal) => solicitudesApi.listar(orden, { signal }), [clave]);
+  const enAtencion = datos ? datos.datos.filter((s) => !s.esFinal).length : null;
+
+  return (
+    <>
+      <WelcomeBand
+        nombre={usuario.nombre.split(' ')[0]}
+        resumen={enAtencion === null ? 'Consultando sus solicitudes asignadas…' : `Tiene ${enAtencion} ${enAtencion === 1 ? 'solicitud asignada' : 'solicitudes asignadas'} en curso.`}
+      />
+      <PageHeader eyebrow="Solicitudes" titulo="Asignadas a mí" descripcion="Solo se muestran las solicitudes que tiene asignadas actualmente." />
+      <section className="panel">
+        {cargando && !datos ? <Loading /> : null}
+        {error ? <ErrorState error={error} onReintentar={recargar} /> : null}
+        {datos && datos.datos.length === 0 ? (
+          <EmptyState icono="inbox" titulo="No tiene solicitudes asignadas">
+            El coordinador le asignará solicitudes a medida que las reciba.
+          </EmptyState>
+        ) : null}
+        {datos && datos.datos.length > 0 ? (
+          <SolicitudesTable solicitudes={datos.datos} orden={orden.orden} dir={orden.dir} onOrden={(o, d) => setOrden({ orden: o, dir: d })} />
+        ) : null}
+      </section>
+    </>
+  );
+}
+
+// El auditor: sus funciones no están en este sprint.
 function VistaProximosSprints() {
   const { usuario } = useAuth();
   return (
@@ -201,12 +254,13 @@ function VistaProximosSprints() {
 }
 
 /**
- * HU03/HU04 · Una sola página que muestra la vista según el rol: el solicitante ve
- * sus propias solicitudes y el coordinador ve todas con la acción de priorizar.
+ * HU03/HU04/HU05 · Una sola página que muestra la vista según el rol: el solicitante ve
+ * sus propias solicitudes, el coordinador ve todas y el agente solo las asignadas.
  */
 export default function SolicitudesPage() {
   const { usuario } = useAuth();
   if (usuario.rol === ROLES.COORDINADOR) return <VistaCoordinador />;
   if (usuario.rol === ROLES.SOLICITANTE) return <VistaSolicitante />;
+  if (usuario.rol === ROLES.AGENTE) return <VistaAgente />;
   return <VistaProximosSprints />;
 }

@@ -8,7 +8,7 @@ import SolicitudesPage from './pages/SolicitudesPage.jsx';
 import NuevaSolicitudPage from './pages/NuevaSolicitudPage.jsx';
 import SolicitudDetallePage from './pages/SolicitudDetallePage.jsx';
 
-const { SOLICITANTE, COORDINADOR } = ROLES;
+const { SOLICITANTE, AGENTE, COORDINADOR } = ROLES;
 
 // Página simple para rutas que no existen.
 function NoEncontrado() {
@@ -35,7 +35,7 @@ export default function App() {
         <Route index element={<Navigate to="/solicitudes" replace />} />
         <Route path="solicitudes" element={<SolicitudesPage />} />
         <Route path="solicitudes/nueva" element={<RequireAuth roles={[SOLICITANTE]}><NuevaSolicitudPage /></RequireAuth>} />
-        <Route path="solicitudes/:id" element={<RequireAuth roles={[SOLICITANTE, COORDINADOR]}><SolicitudDetallePage /></RequireAuth>} />
+        <Route path="solicitudes/:id" element={<RequireAuth roles={[SOLICITANTE, AGENTE, COORDINADOR]}><SolicitudDetallePage /></RequireAuth>} />
         <Route path="*" element={<NoEncontrado />} />
       </Route>
     </Routes>

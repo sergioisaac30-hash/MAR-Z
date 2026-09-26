@@ -1,10 +1,18 @@
-import { ACCIONES, ESTADOS, ROLES, formatCodigo } from '../domain/constantes.js';
+import { ACCIONES, ESTADOS, PRIORIDAD_CON_JUSTIFICACION, ROLES, formatCodigo, parseCodigo } from '../domain/constantes.js';
 import { badRequest, conflict, notFound } from '../middleware/errorHandler.js';
+import { dateAFecha, fechaADate } from '../utils/fechas.js';
+
+const USUARIO_PUBLICO = { select: { id: true, nombre: true, codigoActor: true } };
 
 export const INCLUDE_SOLICITUD = {
   categoria: { select: { id: true, nombre: true } },
   estado: { select: { codigo: true, esFinal: true } },
   solicitante: { select: { id: true, nombre: true } },
+  asignaciones: {
+    where: { vigente: true },
+    include: { agente: USUARIO_PUBLICO, coordinador: USUARIO_PUBLICO },
+  },
+  cierres: { where: { tipo: 'REAPERTURA' }, orderBy: { creadoEn: 'desc' }, take: 1 },
 };
 
 const ORDENES = {
@@ -32,18 +40,37 @@ export function registrarAuditoria(tx, { solicitudId = null, actorId, accion, ca
 /*
  * Qué solicitudes puede ver cada rol:
  * - SOLICITANTE: solo las suyas (HU03).
- * - COORDINADOR: todas (HU04).
- * - AGENTE / AUDITOR: ninguna (llega en próximos sprints).
+ * - AGENTE: solo las que tiene asignadas de forma vigente (HU05/HU06/HU07).
+ * - COORDINADOR: todas (HU04/HU05).
+ * - AUDITOR: ninguna (llega en próximos sprints).
  */
 export function filtroPorRol(user) {
   switch (user.rol) {
     case ROLES.SOLICITANTE:
       return { solicitanteId: user.id, eliminadaEn: null };
+    case ROLES.AGENTE:
+      return { asignaciones: { some: { agenteId: user.id, vigente: true } }, eliminadaEn: null };
     case ROLES.COORDINADOR:
       return { eliminadaEn: null };
     default:
       return { id: -1 };
   }
+}
+
+// HU08 · Búsqueda por texto en título y descripción; admite también el código SOL-00000.
+function filtroTexto(q) {
+  if (!q) return {};
+  const id = parseCodigo(q);
+  return { OR: [{ titulo: { contains: q } }, { descripcion: { contains: q } }, ...(id ? [{ id }] : [])] };
+}
+
+function asignacionDTO(asignacion) {
+  if (!asignacion) return null;
+  return {
+    agente: { id: asignacion.agente.id, nombre: asignacion.agente.nombre, codigoActor: asignacion.agente.codigoActor },
+    asignadoPor: { nombre: asignacion.coordinador.nombre, codigoActor: asignacion.coordinador.codigoActor },
+    asignadoEn: asignacion.asignadoEn,
+  };
 }
 
 // Convierte una solicitud de la base de datos en la forma que se envía al frontend.
@@ -55,10 +82,15 @@ export function formatearSolicitud(s, user) {
     descripcion: s.descripcion,
     categoria: s.categoria,
     prioridad: s.prioridadId,
+    justificacionPrioridad: s.justificacionPrioridad,
+    fechaObjetivo: dateAFecha(s.fechaObjetivo),
     estado: s.estadoId,
     esFinal: s.estado?.esFinal ?? false,
-    // El nombre del solicitante solo se muestra a quien gestiona la solicitud.
+    // El nombre del solicitante solo se muestra a quien gestiona o atiende la solicitud.
     solicitante: user.rol === ROLES.SOLICITANTE ? { id: s.solicitante.id, nombre: 'Tú' } : s.solicitante,
+    asignacion: asignacionDTO(s.asignaciones?.[0]),
+    // HU08 · el motivo de la última reapertura orienta al agente que retoma la atención.
+    ultimaReapertura: s.cierres?.[0] ? { motivo: s.cierres[0].motivo, fecha: s.cierres[0].creadoEn } : null,
     creadaEn: s.creadaEn,
     actualizadaEn: s.actualizadaEn,
     cerradaEn: s.cerradaEn,
@@ -101,7 +133,7 @@ export function crearServicioSolicitud({ prisma }) {
   }
 
   return {
-    // HU02 · El id, la fecha, el estado "Nuevo" y el dueño los pone el sistema.
+    // HU02 (+ CAM-01) · El id, la fecha, el estado "Nuevo" y el dueño los pone el sistema.
     async crear(user, datos) {
       return prisma.$transaction(async (tx) => {
         await validarCategoria(tx, datos.categoriaId);
@@ -112,6 +144,8 @@ export function crearServicioSolicitud({ prisma }) {
             descripcion: datos.descripcion,
             categoriaId: datos.categoriaId,
             prioridadId: datos.prioridad,
+            justificacionPrioridad: datos.justificacionPrioridad,
+            fechaObjetivo: fechaADate(datos.fechaObjetivo),
             estadoId: ESTADOS.NUEVO,
             solicitanteId: user.id,
             creadaEn: ahora,
@@ -122,14 +156,18 @@ export function crearServicioSolicitud({ prisma }) {
         const base = { solicitudId: creada.id, actorId: user.id, accion: ACCIONES.SOLICITUD_CREADA, fecha: ahora };
         await registrarAuditoria(tx, { ...base, campo: 'estado', nuevo: ESTADOS.NUEVO });
         await registrarAuditoria(tx, { ...base, campo: 'prioridad', nuevo: creada.prioridadId });
+        if (creada.prioridadId === PRIORIDAD_CON_JUSTIFICACION) {
+          await registrarAuditoria(tx, { ...base, campo: 'justificacion_prioridad', nuevo: datos.justificacionPrioridad });
+          await registrarAuditoria(tx, { ...base, campo: 'fecha_objetivo', nuevo: datos.fechaObjetivo });
+        }
         return formatearSolicitud(creada, user);
       });
     },
 
-    // HU03 / HU04 · Lista según el rol, se puede ordenar por prioridad, estado o fecha.
-    async listar(user, { orden = 'fecha', dir = 'desc' } = {}) {
+    // HU03 / HU04 / HU08 · Lista dentro del alcance del rol, ordenable y con búsqueda por texto.
+    async listar(user, { orden = 'fecha', dir = 'desc', q } = {}) {
       const filas = await prisma.solicitud.findMany({
-        where: filtroPorRol(user),
+        where: { AND: [filtroPorRol(user), filtroTexto(q)] },
         include: INCLUDE_SOLICITUD,
         orderBy: ORDENES[orden](dir),
       });
@@ -141,32 +179,32 @@ export function crearServicioSolicitud({ prisma }) {
       return formatearSolicitud(await buscarEnAlcance(prisma, user, id), user);
     },
 
-    // HU04 · Solo el coordinador (se valida en la ruta). El cambio queda auditado.
-    async cambiarPrioridad(user, id, { prioridad }) {
+    // HU04 (+ CAM-01) · Solo el coordinador (se valida en la ruta). Cada campo modificado
+    // (prioridad, justificación, fecha objetivo) queda como un evento de auditoría propio.
+    async cambiarPrioridad(user, id, { prioridad, justificacionPrioridad, fechaObjetivo }) {
       return prisma.$transaction(async (tx) => {
         const actual = await buscarEnAlcance(tx, user, id);
         if (actual.estado.esFinal) {
           throw conflict('SOLICITUD_CERRADA', 'No se puede cambiar la prioridad de una solicitud cerrada.');
         }
-        if (actual.prioridadId === prioridad) {
-          throw conflict('SIN_CAMBIOS', `La solicitud ya tiene prioridad ${prioridad}.`);
+        const cambios = [
+          ['prioridad', actual.prioridadId, prioridad],
+          ['justificacion_prioridad', actual.justificacionPrioridad, justificacionPrioridad],
+          ['fecha_objetivo', dateAFecha(actual.fechaObjetivo), fechaObjetivo],
+        ].filter(([, anterior, nuevo]) => (anterior ?? null) !== (nuevo ?? null));
+        if (cambios.length === 0) {
+          throw conflict('SIN_CAMBIOS', `La solicitud ya tiene prioridad ${prioridad} con esos datos.`);
         }
 
         const ahora = new Date();
         const actualizada = await tx.solicitud.update({
           where: { id },
-          data: { prioridadId: prioridad, actualizadaEn: ahora },
+          data: { prioridadId: prioridad, justificacionPrioridad, fechaObjetivo: fechaADate(fechaObjetivo), actualizadaEn: ahora },
           include: INCLUDE_SOLICITUD,
         });
-        await registrarAuditoria(tx, {
-          solicitudId: id,
-          actorId: user.id,
-          accion: ACCIONES.PRIORIDAD_CAMBIADA,
-          campo: 'prioridad',
-          anterior: actual.prioridadId,
-          nuevo: prioridad,
-          fecha: ahora,
-        });
+        for (const [campo, anterior, nuevo] of cambios) {
+          await registrarAuditoria(tx, { solicitudId: id, actorId: user.id, accion: ACCIONES.PRIORIDAD_CAMBIADA, campo, anterior, nuevo, fecha: ahora });
+        }
         return formatearSolicitud(actualizada, user);
       });
     },

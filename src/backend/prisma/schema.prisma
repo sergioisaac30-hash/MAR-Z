@@ -1,4 +1,4 @@
-// Mesa de Solicitudes · modelo de datos (Prisma ORM) — Sprint 1 (HU01-HU04)
+// Mesa de Solicitudes · modelo de datos (Prisma ORM) — Sprint 1 (HU01-HU04) + Sprint 2 (HU05-HU08)
 // Proveedor por defecto: SQLite (ejecución local sin servidor).
 // Los catálogos (roles, prioridades, estados, categorías, acciones) se insertan en las
 // migraciones porque el sistema los necesita para funcionar; no son datos de prueba.
@@ -15,10 +15,11 @@ datasource db {
 // ─── Seguridad ───────────────────────────────────────────────────────────────
 
 model Rol {
-  id       Int       @id
-  codigo   String    @unique // SOLICITANTE | AGENTE | COORDINADOR | AUDITOR
-  nombre   String
-  usuarios Usuario[]
+  id            Int                @id
+  codigo        String             @unique // SOLICITANTE | AGENTE | COORDINADOR | AUDITOR
+  nombre        String
+  usuarios      Usuario[]
+  transiciones  TransicionEstado[]
 
   @@map("roles")
 }
@@ -38,11 +39,16 @@ model Usuario {
   creadoEn      DateTime @default(now()) @map("creado_en")
   actualizadoEn DateTime @updatedAt @map("actualizado_en")
 
-  rol                 Rol         @relation(fields: [rolId], references: [id])
-  sesiones            Sesion[]
-  solicitudes         Solicitud[] @relation("SolicitudSolicitante")
-  solicitudesEliminadas Solicitud[] @relation("SolicitudEliminadaPor")
-  auditorias          Auditoria[]
+  rol                    Rol            @relation(fields: [rolId], references: [id])
+  sesiones               Sesion[]
+  solicitudes            Solicitud[]    @relation("SolicitudSolicitante")
+  solicitudesEliminadas  Solicitud[]    @relation("SolicitudEliminadaPor")
+  auditorias             Auditoria[]
+  asignacionesComoAgente Asignacion[]   @relation("AsignacionAgente")
+  asignacionesHechas     Asignacion[]   @relation("AsignacionCoordinador")
+  comentarios            Comentario[]
+  cierres                Cierre[]
+  notificaciones         Notificacion[]
 
   @@index([rolId, estado])
   @@map("usuarios")
@@ -88,7 +94,24 @@ model Estado {
   esFinal     Boolean     @default(false) @map("es_final")
   solicitudes Solicitud[]
 
+  transicionesOrigen  TransicionEstado[] @relation("TransicionOrigen")
+  transicionesDestino TransicionEstado[] @relation("TransicionDestino")
+
   @@map("estados")
+}
+
+// HU07 · Tabla del flujo de estados: qué rol puede pasar de un estado a otro.
+model TransicionEstado {
+  estadoOrigenId  String @map("estado_origen")
+  estadoDestinoId String @map("estado_destino")
+  rolId           Int    @map("rol_id")
+
+  estadoOrigen  Estado @relation("TransicionOrigen", fields: [estadoOrigenId], references: [codigo])
+  estadoDestino Estado @relation("TransicionDestino", fields: [estadoDestinoId], references: [codigo])
+  rol           Rol    @relation(fields: [rolId], references: [id])
+
+  @@id([estadoOrigenId, estadoDestinoId, rolId])
+  @@map("transiciones_estado")
 }
 
 // ─── Solicitudes ─────────────────────────────────────────────────────────────
@@ -107,13 +130,20 @@ model Solicitud {
   /// Borrado lógico (HU · Eliminar solicitud): si no es null, la solicitud no aparece en listas ni detalle.
   eliminadaEn   DateTime? @map("eliminada_en")
   eliminadaPor  Int?      @map("eliminada_por")
+  /// Cambio 1 (Sprint 2): obligatorios cuando la prioridad es Alta; se limpian para el resto.
+  justificacionPrioridad String?   @map("justificacion_prioridad")
+  fechaObjetivo          DateTime? @map("fecha_objetivo")
 
   categoria    Categoria   @relation(fields: [categoriaId], references: [id])
   prioridad    Prioridad   @relation(fields: [prioridadId], references: [codigo])
   estado       Estado      @relation(fields: [estadoId], references: [codigo])
   solicitante  Usuario     @relation("SolicitudSolicitante", fields: [solicitanteId], references: [id])
   eliminadaPorUsuario Usuario? @relation("SolicitudEliminadaPor", fields: [eliminadaPor], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  auditorias   Auditoria[]
+  auditorias     Auditoria[]
+  asignaciones   Asignacion[]
+  comentarios    Comentario[]
+  cierres        Cierre[]
+  notificaciones Notificacion[]
 
   @@index([solicitanteId])
   @@index([estadoId])
@@ -152,4 +182,74 @@ model Auditoria {
   @@index([accionId])
   @@index([creadoEn])
   @@map("auditoria")
+}
+
+// ─── Flujo de trabajo (Sprint 2) ───────────────────────────────────────────────
+
+/// HU05 · Asignación de una solicitud a un agente. Es inmutable salvo el paso de
+/// vigente a histórica (lo impone un trigger); solo hay una vigente por solicitud.
+model Asignacion {
+  id           Int      @id @default(autoincrement())
+  solicitudId  Int      @map("solicitud_id")
+  agenteId     Int      @map("agente_id")
+  asignadoPor  Int      @map("asignado_por")
+  asignadoEn   DateTime @default(now()) @map("asignado_en")
+  vigente      Boolean  @default(true)
+
+  solicitud   Solicitud @relation(fields: [solicitudId], references: [id])
+  agente      Usuario   @relation("AsignacionAgente", fields: [agenteId], references: [id])
+  coordinador Usuario   @relation("AsignacionCoordinador", fields: [asignadoPor], references: [id])
+
+  @@index([solicitudId, vigente])
+  @@index([agenteId, vigente])
+  @@map("asignaciones")
+}
+
+/// HU06 · Comentario de trabajo del agente asignado. Inmutable (sin edición ni borrado).
+model Comentario {
+  id          Int      @id @default(autoincrement())
+  solicitudId Int      @map("solicitud_id")
+  autorId     Int      @map("autor_id")
+  contenido   String
+  creadoEn    DateTime @default(now()) @map("creado_en")
+
+  solicitud Solicitud @relation(fields: [solicitudId], references: [id])
+  autor     Usuario   @relation(fields: [autorId], references: [id])
+
+  @@index([solicitudId, creadoEn])
+  @@map("comentarios")
+}
+
+/// HU08 · Registro de confirmación o reapertura. Inmutable.
+model Cierre {
+  id          Int      @id @default(autoincrement())
+  solicitudId Int      @map("solicitud_id")
+  /// CONFIRMACION | REAPERTURA
+  tipo        String
+  motivo      String?
+  actorId     Int      @map("actor_id")
+  creadoEn    DateTime @default(now()) @map("creado_en")
+
+  solicitud Solicitud @relation(fields: [solicitudId], references: [id])
+  actor     Usuario   @relation(fields: [actorId], references: [id])
+
+  @@index([solicitudId])
+  @@map("cierres")
+}
+
+/// HU05 · Notificación dentro de la aplicación (p. ej. al asignar una solicitud).
+model Notificacion {
+  id          Int       @id @default(autoincrement())
+  usuarioId   Int       @map("usuario_id")
+  solicitudId Int?      @map("solicitud_id")
+  tipo        String
+  mensaje     String
+  creadaEn    DateTime  @default(now()) @map("creada_en")
+  leidaEn     DateTime? @map("leida_en")
+
+  usuario   Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  solicitud Solicitud? @relation(fields: [solicitudId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([usuarioId, leidaEn])
+  @@map("notificaciones")
 }

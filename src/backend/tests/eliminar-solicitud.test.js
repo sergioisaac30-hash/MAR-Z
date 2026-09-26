@@ -94,7 +94,7 @@ describe('Eliminar solicitud', () => {
 
   it('la prioridad no se puede cambiar en una solicitud eliminada (404)', async () => {
     const solicitud = await ctx.prisma.solicitud.findFirst({ where: { eliminadaEn: { not: null } } });
-    const res = await coordinador.patch(`/api/solicitudes/${solicitud.id}/prioridad`, { prioridad: 'Alta' });
+    const res = await coordinador.patch(`/api/solicitudes/${solicitud.id}/prioridad`, { prioridad: 'Baja' });
     expect(res.status).toBe(404);
   });
 });

@@ -11,12 +11,18 @@ import { authRoutes } from './routes/authRoutes.js';
 import { solicitudRoutes, catalogoRoutes } from './routes/solicitudRoutes.js';
 import { agenteRoutes } from './routes/agenteRoutes.js';
 import { notificacionRoutes } from './routes/notificacionRoutes.js';
+import { indicadorRoutes } from './routes/indicadorRoutes.js';
+import { auditoriaRoutes } from './routes/auditoriaRoutes.js';
+import { reporteRoutes } from './routes/reporteRoutes.js';
 import { crearServicioAuth } from './services/authService.js';
 import { crearServicioCatalogo, crearServicioSolicitud } from './services/solicitudService.js';
 import { crearServicioAsignacion } from './services/asignacionService.js';
 import { crearServicioComentario } from './services/comentarioService.js';
 import { crearServicioFlujo } from './services/flujoService.js';
 import { crearServicioNotificacion } from './services/notificacionService.js';
+import { crearServicioIndicadores } from './services/indicadorService.js';
+import { crearServicioAuditoria } from './services/auditoriaService.js';
+import { crearServicioExportacion } from './services/exportacionService.js';
 
 // Junta todos los servicios que usa la app.
 function crearServicios({ prisma, config }) {
@@ -28,6 +34,9 @@ function crearServicios({ prisma, config }) {
     comentarios: crearServicioComentario({ prisma }),
     flujo: crearServicioFlujo({ prisma }),
     notificaciones: crearServicioNotificacion({ prisma }),
+    indicadores: crearServicioIndicadores({ prisma }),
+    auditoria: crearServicioAuditoria({ prisma }),
+    exportaciones: crearServicioExportacion({ prisma }),
   };
 }
 
@@ -42,6 +51,9 @@ function crearRouterApi({ services, config }) {
   router.use('/solicitudes', solicitudRoutes(deps));
   router.use('/agentes', agenteRoutes(deps));
   router.use('/notificaciones', notificacionRoutes(deps));
+  router.use('/indicadores', indicadorRoutes(deps));
+  router.use('/auditoria', auditoriaRoutes(deps));
+  router.use('/reportes', reporteRoutes(deps));
   return router;
 }
 

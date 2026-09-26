@@ -49,6 +49,7 @@ model Usuario {
   comentarios            Comentario[]
   cierres                Cierre[]
   notificaciones         Notificacion[]
+  exportaciones          Exportacion[]
 
   @@index([rolId, estado])
   @@map("usuarios")
@@ -235,6 +236,21 @@ model Cierre {
 
   @@index([solicitudId])
   @@map("cierres")
+}
+
+/// HU12 · Registro de cada exportación: quién, cuándo, con qué filtros y cuántas filas. Inmutable.
+model Exportacion {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @map("usuario_id")
+  /// Filtros aplicados, serializados como JSON.
+  filtros   String
+  filas     Int
+  creadaEn  DateTime @default(now()) @map("creada_en")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([creadaEn])
+  @@map("exportaciones")
 }
 
 /// HU05 · Notificación dentro de la aplicación (p. ej. al asignar una solicitud).

@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { ErrorApp } from '../middleware/errorHandler.js';
 
 // Modelos cuyo contenido no puede modificarse ni borrarse una vez creado.
-export const MODELOS_INMUTABLES = ['auditoria', 'comentario', 'cierre'];
+export const MODELOS_INMUTABLES = ['auditoria', 'comentario', 'cierre', 'exportacion'];
 const OPERACIONES_BLOQUEADAS = ['update', 'updateMany', 'upsert', 'delete', 'deleteMany'];
 
 function bloquear(modelo) {

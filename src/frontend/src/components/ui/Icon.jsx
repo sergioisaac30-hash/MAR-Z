@@ -25,6 +25,8 @@ const PATHS = {
   eye: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></>,
   eyeOff: <><path d="M3 3l18 18" /><path d="M10.6 5.6A9.8 9.8 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3.1 3.9M6.6 6.6C4 8.3 2.5 12 2.5 12S6 18.5 12 18.5c1.7 0 3.2-.5 4.5-1.2" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>,
   trash: <><path d="M4.5 7h15" /><path d="M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2" /><path d="M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7" /><path d="M10 11v6M14 11v6" /></>,
+  bell: <><path d="M6 10.5a6 6 0 0 1 12 0v3.2l1.6 2.8H4.4L6 13.7z" /><path d="M9.5 19a2.5 2.5 0 0 0 5 0" /></>,
+  message: <><path d="M4 5.5h16v11H9l-4 3.5v-3.5H4z" /></>,
 };
 
 // Icono en SVG a partir de su nombre; si no existe se usa uno genérico.

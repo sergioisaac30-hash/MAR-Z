@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext.jsx';
-import { NAVEGACION } from '../../auth/roles.js';
+import { NAVEGACION, ROLES } from '../../auth/roles.js';
 import { iniciales } from '../../utils/format.js';
 import { Icon } from '../ui/Icon.jsx';
+import { NotificationBell } from '../notificaciones/NotificationBell.jsx';
 
 // Logo de la aplicación: un rayo.
 export function BrandMark({ className = 'brand__mark' }) {
@@ -77,6 +78,7 @@ export function AppShell() {
             <strong>{actual?.etiqueta ?? 'Solicitudes'}</strong>
           </div>
           <div className="spacer" />
+          {usuario.rol === ROLES.AGENTE ? <NotificationBell /> : null}
           <span className="user-chip" title={usuario.email}>
             <span className="avatar">{iniciales(usuario.nombre)}</span>
             <span className="user-chip__text">

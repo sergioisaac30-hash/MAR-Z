@@ -83,11 +83,31 @@ export const catalogosApi = {
   obtener: () => get('/catalogos'),
 };
 
-// Endpoints de solicitudes (HU02, HU03, HU04).
+// Endpoints de solicitudes (HU02, HU03, HU04) y del flujo del Sprint 2 (HU05-HU08).
 export const solicitudesApi = {
   listar: (query, opts) => get('/solicitudes', query, opts),
   obtener: (id, opts) => get(`/solicitudes/${id}`, undefined, opts),
   crear: (datos) => post('/solicitudes', datos),
   cambiarPrioridad: (id, datos) => patch(`/solicitudes/${id}/prioridad`, datos),
   eliminar: (id) => del(`/solicitudes/${id}`),
+  asignar: (id, datos) => post(`/solicitudes/${id}/asignacion`, datos),
+  listarComentarios: (id, opts) => get(`/solicitudes/${id}/comentarios`, undefined, opts),
+  comentar: (id, datos) => post(`/solicitudes/${id}/comentarios`, datos),
+  transiciones: (id, opts) => get(`/solicitudes/${id}/transiciones`, undefined, opts),
+  cambiarEstado: (id, datos) => post(`/solicitudes/${id}/estado`, datos),
+  historial: (id, opts) => get(`/solicitudes/${id}/historial`, undefined, opts),
+  confirmar: (id) => post(`/solicitudes/${id}/confirmacion`),
+  reabrir: (id, datos) => post(`/solicitudes/${id}/reapertura`, datos),
+};
+
+// HU05 · Agentes activos disponibles para asignar.
+export const agentesApi = {
+  listar: () => get('/agentes'),
+};
+
+// HU05 · Notificaciones dentro de la aplicación.
+export const notificacionesApi = {
+  listar: (opts) => get('/notificaciones', undefined, opts),
+  marcarLeida: (id) => patch(`/notificaciones/${id}/leida`),
+  marcarTodas: () => post('/notificaciones/leidas'),
 };

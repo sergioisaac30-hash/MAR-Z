@@ -1,6 +1,6 @@
 # Mesa de Solicitudes
 
-Aplicación web para registrar y gestionar solicitudes de soporte interno: los usuarios piden ayuda, un coordinador organiza y asigna el trabajo y los agentes lo atienden. Esta versión corresponde al cierre del Sprint 2.
+Aplicación web para registrar y gestionar solicitudes de soporte interno: los usuarios piden ayuda, un coordinador organiza y asigna el trabajo, los agentes lo atienden y un auditor revisa el historial.
 
 La aplicación arranca **sin solicitudes**: cada cuenta aparece vacía hasta que un solicitante crea la primera.
 
@@ -16,10 +16,15 @@ La aplicación arranca **sin solicitudes**: cada cuenta aparece vacía hasta que
 | 2 | HU06 | Registrar comentarios de trabajo | Agente |
 | 2 | HU07 | Cambiar el estado de una solicitud | Agente |
 | 2 | HU08 | Confirmar o reabrir la solución | Solicitante |
+| 3 | HU09 | Buscar y filtrar solicitudes | Solicitante, Agente, Coordinador |
+| 3 | HU10 | Indicadores del servicio | Coordinador |
+| 3 | HU11 | Historial de auditoría | Auditor |
+| 3 | HU12 | Exportar reporte CSV | Coordinador |
 
-Cambio controlado:
+Cambios controlados:
 
 - **CAM-01 (Sprint 2):** una solicitud con prioridad Alta necesita justificación y fecha objetivo, al crearla y al priorizarla.
+- **CAM-02 (Sprint 3):** el auditor solo puede leer el historial, y los reportes exportados excluyen el texto libre.
 
 ## Estructura del repositorio
 
@@ -58,7 +63,7 @@ npm install
 Para revisar el estado exacto de un sprint, cambiar al tag correspondiente antes de instalar:
 
 ```bash
-git checkout Sprint-2-Cierre
+git checkout Sprint-3-Cierre
 ```
 
 ### Variables de entorno
@@ -128,11 +133,11 @@ Todos los datos son ficticios. La contraseña de todas las cuentas es `Mesa2026!
 |-----|--------|------|
 | Solicitante | `solicitante.norte@mesa.test` | Mis solicitudes · Nueva solicitud |
 | Solicitante | `solicitante.sur@mesa.test` | Mis solicitudes · Nueva solicitud |
-| Coordinador | `coordinador@mesa.test` | Priorización |
+| Coordinador | `coordinador@mesa.test` | Priorización · Indicadores · Exportar |
 | Agente | `agente.uno@mesa.test` | Asignadas a mí |
 | Agente | `agente.dos@mesa.test` | Asignadas a mí |
 | Agente (inactivo) | `agente.tres@mesa.test` | No puede iniciar sesión |
-| Auditor | `auditor@mesa.test` | Inicia sesión; sus funciones llegan en el Sprint 3 |
+| Auditor | `auditor@mesa.test` | Historial de cambios |
 
 En modo desarrollo, la pantalla de login tiene un desplegable "Cuentas de prueba" para rellenar los datos con un clic.
 
@@ -166,8 +171,14 @@ Ejecuta las pruebas del backend (una base SQLite temporal por archivo) y del fro
 | `pa06-comentarios.test.js` | HU06: comentarios y su visibilidad |
 | `pa07-cambiar-estado.test.js` | HU07: transiciones válidas e historial |
 | `pa08-confirmar-reabrir.test.js` | HU08: confirmar y reabrir con motivo |
+| `pa09-buscar-filtrar.test.js` | HU09: búsqueda por texto y filtros combinados |
+| `pa10-indicadores.test.js` | HU10: indicadores agregados |
+| `pa11-auditoria.test.js` | HU11: historial de auditoría |
+| `pa12-exportar.test.js` | HU12: exportación CSV |
 | `cam01-prioridad-alta.test.js` | CAM-01: prioridad Alta con justificación y fecha objetivo |
+| `cam02-auditor-solo-lectura.test.js` | CAM-02: auditor en solo lectura |
 | `eliminar-solicitud.test.js` | Eliminación lógica de solicitudes |
+| `regresion-flujo-completo.test.js` | Recorrido completo de HU01 a HU12 |
 
 ## Problemas comunes
 

@@ -1,56 +1,61 @@
-# Reporte de pruebas · Sprint 2 (HU05–HU08 y CAM-01)
+Reporte de pruebas · Sprint 2 (HU05–HU08 y CAM-01)
 
-Fecha de ejecución: 2026-09-29
-Versión probada: tag `Sprint-2-Cierre`
-Comando: `npm test` (instalación limpia con `npm ci`)
+Fecha de ejecución: 2026-09-27
+Versión probada: Sprint-2-Cierre
+Comando: npm test con instalación limpia usando npm ci
 
-## Resumen
+Se realizaron 98 pruebas, de las cuales 98 fueron correctas y 0 fallaron.
 
-| Conjunto | Archivos | Pruebas | Resultado |
-|----------|----------|---------|-----------|
-| Backend (API) | 10 | 85 | 85 correctas |
-| Frontend | 4 | 13 | 13 correctas |
-| **Total** | **14** | **98** | **98 correctas, 0 fallidas** |
+En el backend se realizaron 85 pruebas y en el frontend 13. También se incluyen nuevamente las pruebas del Sprint 1 (HU01–HU04) como parte de la regresión.
 
-Incluye las pruebas del Sprint 1 (HU01–HU04), que se vuelven a ejecutar como regresión.
+HU05 · Asignar solicitud
 
-## HU05 · Asignar solicitud (`pa05-asignar.test.js`)
+Se comprobó que la lista de agentes solo muestre usuarios activos y que el coordinador pueda asignar solicitudes, dejando registrado quién realizó la asignación y cuándo.
 
-- CA1–CA2: la lista de agentes solo incluye agentes con estado Activo.
-- CA1–CA4: asigna a un agente activo y registra quién y cuándo.
-- CA5: el agente recibe una notificación dentro de la aplicación; nadie puede leer notificaciones ajenas.
-- CA6: rechaza asignar a un agente inactivo, a otro rol o a un usuario inexistente, reasignar al mismo agente y asignar solicitudes resueltas o cerradas.
-- Solo el coordinador asigna. Al reasignar, el agente anterior pierde el acceso y queda una sola asignación vigente.
-- El agente solo lista las solicitudes que tiene asignadas.
+El agente recibe una notificación dentro de la aplicación y no puede acceder a notificaciones de otros usuarios.
 
-## HU06 · Comentarios de trabajo (`pa06-comentarios.test.js`)
+También se verificó que no sea posible asignar solicitudes a usuarios inactivos, de otro rol o inexistentes, ni reasignar al mismo agente o solicitudes resueltas o cerradas.
 
-- CA1: el comentario no puede estar vacío.
-- CA2: autor y fecha los fija el servidor.
-- CA2/CA4: no se puede editar ni borrar un comentario.
-- CA3: visible para el solicitante propietario, el agente asignado y el coordinador; no visible para otros.
-- Solo el agente asignado comenta; el comentario queda en auditoría sin copiar su texto.
+Al reasignar, el agente anterior pierde el acceso y queda una sola asignación vigente. Además, cada agente solo puede ver las solicitudes que tiene asignadas.
 
-## HU07 · Cambiar estado (`pa07-cambiar-estado.test.js`)
+HU06 · Comentarios de trabajo
 
-- Las transiciones disponibles dependen del estado y del rol.
-- CA1: flujo válido Asignada → En progreso → En espera → En progreso → Resuelta.
-- CA2: historial completo con actor codificado, fecha, campo y valores.
-- CA3: una transición inválida se rechaza sin modificar nada; el agente no puede cerrar ni reabrir.
+Se comprobó que los comentarios no puedan estar vacíos y que el servidor establezca automáticamente el autor y la fecha.
 
-## HU08 · Confirmar o reabrir (`pa08-confirmar-reabrir.test.js`)
+Los comentarios no pueden editarse ni eliminarse. Solo son visibles para el solicitante propietario, el agente asignado y el coordinador.
 
-- CA2: el solicitante confirma una solicitud "Resuelta"; no se puede confirmar ni reabrir en otro estado.
-- CA3: puede reabrirla con un motivo obligatorio.
-- CA4: confirmación y reapertura quedan trazadas y no pueden modificarse.
-- Solo el solicitante propietario confirma o reabre.
+Únicamente el agente asignado puede comentar y cada comentario queda registrado en auditoría sin guardar su texto dentro de esta.
 
-## CAM-01 · Prioridad Alta (`cam01-prioridad-alta.test.js`)
+HU07 · Cambiar estado
 
-- Al crear: rechaza Alta sin justificación o con fecha objetivo vacía, pasada o inválida; acepta Alta con ambos datos y lo deja trazado.
-- Al priorizar: el coordinador no puede subir a Alta sin justificación y fecha objetivo; bajar de Alta limpia ambos campos.
-- La base de datos también impide una Alta sin justificación.
+Se verificó que las opciones de cambio de estado dependan del estado actual y del rol del usuario.
 
-## Verificación de instalación
+El flujo válido probado fue Asignada → En progreso → En espera → En progreso → Resuelta.
 
-Se clonó el repositorio en una carpeta limpia en el tag `Sprint-2-Cierre` y se siguieron los pasos del `README.md` (`npm ci`, `npm run db:migrate`, `npm run db:seed` y `npm test`) sin errores. La base queda con los 7 usuarios de prueba y sin solicitudes.
+Los cambios quedan registrados con el actor, la fecha, el campo modificado y los valores anteriores y nuevos.
+
+Las transiciones inválidas son rechazadas sin modificar la solicitud y el agente no puede cerrar ni reabrir una solicitud.
+
+HU08 · Confirmar o reabrir
+
+Se comprobó que el solicitante pueda confirmar una solicitud cuando está en estado Resuelta y que no pueda hacerlo en otro estado.
+
+También puede reabrirla indicando un motivo obligatorio.
+
+La confirmación y la reapertura quedan registradas y no pueden modificarse. Estas acciones solo las puede realizar el solicitante propietario.
+
+CAM-01 · Prioridad Alta
+
+Al crear una solicitud, se rechaza la prioridad Alta cuando falta la justificación o la fecha objetivo, o cuando esta última es inválida o está vencida.
+
+Cuando se proporcionan ambos datos, la prioridad Alta se acepta y queda registrada.
+
+Al cambiar la prioridad, el coordinador debe indicar justificación y fecha objetivo para subir a Alta. Al bajarla de Alta, estos datos se eliminan.
+
+También se comprobó que la base de datos impida guardar una solicitud con prioridad Alta sin justificación.
+
+Verificación de instalación
+
+Se clonó el repositorio en una carpeta limpia usando el tag Sprint-2-Cierre y se siguieron los pasos del README.md: npm ci, npm run db:migrate, npm run db:seed y npm test.
+
+La instalación terminó sin errores y la base de datos quedó con los 7 usuarios de prueba y sin solicitudes.

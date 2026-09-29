@@ -1,6 +1,6 @@
 # Mesa de Solicitudes
 
-Aplicación web para registrar y gestionar solicitudes de soporte interno: los usuarios piden ayuda y un coordinador las prioriza. Esta versión corresponde al cierre del Sprint 1.
+Aplicación web para registrar y gestionar solicitudes de soporte interno: los usuarios piden ayuda, un coordinador organiza y asigna el trabajo y los agentes lo atienden. Esta versión corresponde al cierre del Sprint 2.
 
 La aplicación arranca **sin solicitudes**: cada cuenta aparece vacía hasta que un solicitante crea la primera.
 
@@ -12,6 +12,14 @@ La aplicación arranca **sin solicitudes**: cada cuenta aparece vacía hasta que
 | 1 | HU02 | Crear una solicitud de soporte | Solicitante |
 | 1 | HU03 | Consultar mis solicitudes | Solicitante |
 | 1 | HU04 | Ver, priorizar y ordenar solicitudes | Coordinador |
+| 2 | HU05 | Asignar una solicitud a un agente (con notificación) | Coordinador |
+| 2 | HU06 | Registrar comentarios de trabajo | Agente |
+| 2 | HU07 | Cambiar el estado de una solicitud | Agente |
+| 2 | HU08 | Confirmar o reabrir la solución | Solicitante |
+
+Cambio controlado:
+
+- **CAM-01 (Sprint 2):** una solicitud con prioridad Alta necesita justificación y fecha objetivo, al crearla y al priorizarla.
 
 ## Estructura del repositorio
 
@@ -50,7 +58,7 @@ npm install
 Para revisar el estado exacto de un sprint, cambiar al tag correspondiente antes de instalar:
 
 ```bash
-git checkout Sprint-1-Cierre
+git checkout Sprint-2-Cierre
 ```
 
 ### Variables de entorno
@@ -86,7 +94,7 @@ npm run db:reset
 
 Dónde está cada cosa:
 
-- Migraciones que usa la aplicación (Sprint 1): `src/backend/prisma/migrations/`
+- Migraciones que usa la aplicación (una por sprint): `src/backend/prisma/migrations/`
 - Modelo de datos: `src/backend/prisma/schema.prisma`
 - Datos semilla: `src/backend/src/db/seed.js`. Solo crea los usuarios de prueba; las pruebas automáticas cargan sus propias solicitudes en una base temporal.
 - Scripts SQL de cada sprint en `database/`, para revisar o cargar la base sin Node:
@@ -121,12 +129,24 @@ Todos los datos son ficticios. La contraseña de todas las cuentas es `Mesa2026!
 | Solicitante | `solicitante.norte@mesa.test` | Mis solicitudes · Nueva solicitud |
 | Solicitante | `solicitante.sur@mesa.test` | Mis solicitudes · Nueva solicitud |
 | Coordinador | `coordinador@mesa.test` | Priorización |
-| Agente | `agente.uno@mesa.test` | Inicia sesión; sus funciones llegan en próximos sprints |
-| Agente | `agente.dos@mesa.test` | Inicia sesión; sus funciones llegan en próximos sprints |
+| Agente | `agente.uno@mesa.test` | Asignadas a mí |
+| Agente | `agente.dos@mesa.test` | Asignadas a mí |
 | Agente (inactivo) | `agente.tres@mesa.test` | No puede iniciar sesión |
-| Auditor | `auditor@mesa.test` | Inicia sesión; sus funciones llegan en próximos sprints |
+| Auditor | `auditor@mesa.test` | Inicia sesión; sus funciones llegan en el Sprint 3 |
 
 En modo desarrollo, la pantalla de login tiene un desplegable "Cuentas de prueba" para rellenar los datos con un clic.
+
+## Flujo de estados
+
+```
+Nuevo → Asignada            (coordinador, al asignar)
+Asignada → En progreso      (agente)
+En progreso ⇄ En espera     (agente)
+En progreso → Resuelta      (agente)
+Resuelta → Cerrada          (solicitante confirma)
+Resuelta → Reabierta        (solicitante, con motivo)
+Reabierta → En progreso     (agente)
+```
 
 ## Pruebas
 
@@ -142,6 +162,11 @@ Ejecuta las pruebas del backend (una base SQLite temporal por archivo) y del fro
 | `pa02-crear-solicitud.test.js` | HU02: creación y validaciones |
 | `pa03-mis-solicitudes.test.js` | HU03: cada solicitante ve solo lo suyo |
 | `pa04-priorizar.test.js` | HU04: cambio de prioridad y ordenamiento |
+| `pa05-asignar.test.js` | HU05: asignación, agentes activos y notificaciones |
+| `pa06-comentarios.test.js` | HU06: comentarios y su visibilidad |
+| `pa07-cambiar-estado.test.js` | HU07: transiciones válidas e historial |
+| `pa08-confirmar-reabrir.test.js` | HU08: confirmar y reabrir con motivo |
+| `cam01-prioridad-alta.test.js` | CAM-01: prioridad Alta con justificación y fecha objetivo |
 | `eliminar-solicitud.test.js` | Eliminación lógica de solicitudes |
 
 ## Problemas comunes

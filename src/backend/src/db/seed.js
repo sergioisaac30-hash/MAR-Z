@@ -55,8 +55,9 @@ async function crearSolicitud(tx, usuarios, categorias, def) {
   return solicitud;
 }
 
-// Inserta usuarios y solicitudes de demostración; no hace nada si ya hay usuarios.
-export async function seedDemo(prisma, { rounds = 12 } = {}) {
+// Inserta usuarios y, si se pide, solicitudes de demostración; no hace nada si ya hay usuarios.
+// El seed de la aplicación solo crea usuarios; las pruebas automáticas cargan también solicitudes.
+export async function seedDemo(prisma, { rounds = 12, conSolicitudes = true } = {}) {
   if ((await prisma.usuario.count()) > 0) return { omitido: true };
 
   const passwordHash = await bcrypt.hash(PASSWORD_DEMO, rounds);
@@ -67,7 +68,7 @@ export async function seedDemo(prisma, { rounds = 12 } = {}) {
   }
   const categorias = await prisma.categoria.findMany({ orderBy: { id: 'asc' } });
 
-  for (const def of SOLICITUDES_DEMO) {
+  for (const def of conSolicitudes ? SOLICITUDES_DEMO : []) {
     await prisma.$transaction((tx) => crearSolicitud(tx, usuarios, categorias, def));
   }
 
